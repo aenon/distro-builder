@@ -1,0 +1,19 @@
+{
+  "version": "1",
+  "distributions": [
+    {
+      "name": "alpine-minimal",
+      "family": "alpine",
+      "description": "Minimal Alpine Linux for testing",
+      "format": "oci",
+      "base_image": "alpine:3.19",
+      "targets": [
+        {"platform": "x86_64", "output_name": "alpine-minimal-x86_64.tar"},
+        {"platform": "arm64", "output_name": "alpine-minimal-arm64.tar"}
+      ],
+      "stages": [
+        {"name": "install-curl", "type": "install", "params": {"packages": ["curl"]}}
+      ]
+    }
+  ]
+}
