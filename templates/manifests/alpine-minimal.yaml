@@ -1,0 +1,25 @@
+version: "1"
+distributions:
+  - name: alpine-minimal
+    family: alpine
+    description: "Minimal Alpine Linux OCI image with curl and CA certs"
+    format: oci
+    base_image: "alpine:3.19"
+    targets:
+      - platform: x86_64
+        output_name: alpine-minimal-amd64.oci.tar
+      - platform: arm64
+        output_name: alpine-minimal-arm64.oci.tar
+    stages:
+      - name: install-runtime
+        type: install
+        params:
+          manager: apk
+          packages:
+            - curl
+            - ca-certificates
+            - tini
+      - name: verify
+        type: run
+        params:
+          command: "tini --version && curl --version"

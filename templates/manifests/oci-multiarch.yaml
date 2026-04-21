@@ -1,0 +1,28 @@
+version: "1"
+distributions:
+  - name: multiarch-ubuntu
+    family: ubuntu
+    description: "Ubuntu 22.04 multi-arch OCI image (amd64, arm64, riscv64)"
+    format: oci
+    base_image: "ubuntu:22.04"
+    targets:
+      - platform: x86_64
+        output_name: ubuntu-22.04-amd64.oci.tar
+      - platform: arm64
+        output_name: ubuntu-22.04-arm64.oci.tar
+      - platform: riscv64
+        output_name: ubuntu-22.04-riscv64.oci.tar
+    stages:
+      - name: install-base
+        type: install
+        params:
+          manager: apt
+          packages:
+            - curl
+            - ca-certificates
+            - tini
+            - dumb-init
+      - name: configure
+        type: run
+        params:
+          command: "useradd -m -u 1000 builder && mkdir -p /workspace && chown builder:builder /workspace"
