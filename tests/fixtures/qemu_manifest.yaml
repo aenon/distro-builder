@@ -1,0 +1,15 @@
+version: "1"
+distributions:
+  - name: demo-qcow2
+    family: debian
+    description: "demo QEMU qcow2 build"
+    format: qcow2
+    base_image: "debian:bookworm"
+    targets:
+      - platform: x86_64
+        output_name: demo-x86_64.qcow2
+    stages:
+      - name: sizing
+        type: run
+        params:
+          size: 128M
