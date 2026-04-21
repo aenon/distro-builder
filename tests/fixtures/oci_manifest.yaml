@@ -1,0 +1,22 @@
+version: "1"
+distributions:
+  - name: alpine-oci
+    family: alpine
+    description: "alpine OCI image"
+    format: oci
+    base_image: "alpine:3.19"
+    targets:
+      - platform: x86_64
+        output_name: alpine-amd64.oci.tar
+      - platform: arm64
+        output_name: alpine-arm64.oci.tar
+    stages:
+      - name: install-curl
+        type: install
+        params:
+          manager: apk
+          packages: [curl, ca-certificates]
+      - name: hello
+        type: run
+        params:
+          command: "echo hello-world"
