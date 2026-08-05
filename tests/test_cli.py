@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 from click.testing import CliRunner
@@ -127,13 +128,18 @@ class TestBuild:
         combined = result.output + (result.stderr or "")
         assert "no distribution/target" in combined.lower()
 
-    def test_build_without_dry_run_prints_placeholder(self):
+    def test_build_without_dry_run_prints_placeholder(self, mocker):
+        run = mocker.patch(
+            "subprocess.run",
+            return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr=""),
+        )
         result = CliRunner().invoke(
             cli,
             ["build", str(FIXTURES / "valid_manifest.yaml")],
         )
         assert result.exit_code == 0
-        assert "prepared OCI build" in result.output
+        assert "built:" in result.output
+        assert run.called
 
     def test_build_output_dir_respected(self):
         result = CliRunner().invoke(

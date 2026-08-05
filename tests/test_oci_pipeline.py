@@ -67,6 +67,46 @@ class TestBuildOciPlan:
         assert "apt-get install" in text
         assert "curl vim" in text
 
+    def test_copy_stage_produces_copy_instruction(self, tmp_path: Path):
+        dist = _oci_distribution(
+            stages=[
+                Stage(name="copy-file", type="copy", params={"src": "./app.py", "dest": "/app.py"}),
+            ],
+        )
+        plan = build_oci_plan(dist, dist.targets[0], tmp_path)
+        text = plan.dockerfile_path.read_text()
+        assert "COPY ./app.py /app.py" in text
+
+    def test_copy_stage_missing_params_returns_none(self, tmp_path: Path):
+        dist = _oci_distribution(
+            stages=[
+                Stage(name="incomplete-copy", type="copy", params={"src": "./foo"}),
+            ],
+        )
+        plan = build_oci_plan(dist, dist.targets[0], tmp_path)
+        text = plan.dockerfile_path.read_text()
+        assert "COPY" not in text
+
+    def test_mixed_stages_include_copy(self, tmp_path: Path):
+        dist = _oci_distribution(
+            stages=[
+                Stage(
+                    name="install", type="install", params={"manager": "apk", "packages": ["curl"]}
+                ),
+                Stage(
+                    name="copy-file",
+                    type="copy",
+                    params={"src": "./config", "dest": "/etc/app/config"},
+                ),
+                Stage(name="run", type="run", params={"command": "echo done"}),
+            ],
+        )
+        plan = build_oci_plan(dist, dist.targets[0], tmp_path)
+        text = plan.dockerfile_path.read_text()
+        assert "RUN apk add --no-cache curl" in text
+        assert "COPY ./config /etc/app/config" in text
+        assert "RUN echo done" in text
+
     def test_buildx_command_has_correct_platform(self, tmp_path: Path):
         dist = _oci_distribution()
         plan_amd = build_oci_plan(dist, dist.targets[0], tmp_path)
@@ -114,7 +154,8 @@ class TestBuildOciExecution:
 
 
 class TestCliOciBuild:
-    def test_cli_prints_prepared_plan(self, tmp_path: Path):
+    def test_cli_prints_prepared_plan(self, mocker, tmp_path: Path):
+        mocker.patch("subprocess.run", return_value=_fake_completed())
         runner = CliRunner()
         result = runner.invoke(
             cli,
@@ -128,8 +169,8 @@ class TestCliOciBuild:
             ],
         )
         assert result.exit_code == 0, result.output
-        assert "prepared OCI build" in result.output
-        assert "docker" in result.output and "buildx" in result.output
+        assert "built:" in result.output
+        assert "alpine-oci" in result.output
 
     def test_cli_dry_run_for_oci(self, tmp_path: Path):
         runner = CliRunner()
@@ -145,3 +186,24 @@ class TestCliOciBuild:
         )
         assert result.exit_code == 0
         assert "Would build" in result.output
+        # dry-run at CLI level skips the pipeline entirely
+        assert "alpine-oci" in result.output
+
+    def test_cli_non_dry_run_executes_build(self, mocker, tmp_path: Path):
+        run = mocker.patch("subprocess.run", return_value=_fake_completed())
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "build",
+                str(FIXTURES / "oci_manifest.yaml"),
+                "--output-dir",
+                str(tmp_path),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        assert "built:" in result.output
+        assert run.called
+        argv = run.call_args.args[0]
+        assert "docker" in argv
+        assert "buildx" in argv

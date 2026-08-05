@@ -57,7 +57,7 @@ class TestBuildQemuImageMocked:
 
     def test_wrong_format_rejected(self, tmp_path: Path):
         dist = _qcow2_distribution(format="iso")
-        with pytest.raises(QemuPipelineError, match="expected"):
+        with pytest.raises(QemuPipelineError, match="unsupported format"):
             build_qemu_image(dist, dist.targets[0], tmp_path)
 
 

@@ -50,6 +50,10 @@ def _stage_to_docker_command(stage: Stage) -> str | None:
             return f"dnf install -y {joined} && dnf clean all"
         return f"apk add --no-cache {joined} || apt-get update && apt-get install -y {joined}"
     if stage.type == "copy":
+        src = stage.params.get("src") if stage.params else None
+        dest = stage.params.get("dest") if stage.params else None
+        if src and dest:
+            return f"COPY {src} {dest}"
         return None
     return None
 

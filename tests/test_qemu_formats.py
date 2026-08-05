@@ -3,7 +3,14 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from distro_builder.qemu.formats import Qcow2Builder, RawDiskBuilder
+from distro_builder.qemu.formats import (
+    Qcow2Builder,
+    QedBuilder,
+    RawDiskBuilder,
+    VdiBuilder,
+    VhdxBuilder,
+    VmdkBuilder,
+)
 
 
 def _fake_completed() -> subprocess.CompletedProcess[str]:
@@ -61,3 +68,46 @@ class TestQcow2Builder:
         Qcow2Builder().build(Path("/tmp/d.qcow2"), "1G")
         argv = run.call_args.args[0]
         assert argv[argv.index("-f") + 1] == "qcow2"
+
+
+class TestVmdkBuilder:
+    def test_default_options(self, mocker):
+        run = mocker.patch("subprocess.run", return_value=_fake_completed())
+        VmdkBuilder().build(Path("/tmp/d.vmdk"), "1G")
+        argv = run.call_args.args[0]
+        assert argv[argv.index("-f") + 1] == "vmdk"
+        opts = argv[argv.index("-o") + 1]
+        assert "adapter_type=lsilogic" in opts
+        assert "subformat=monolithicFlat" in opts
+
+    def test_custom_adapter(self, mocker):
+        run = mocker.patch("subprocess.run", return_value=_fake_completed())
+        VmdkBuilder().build(Path("/tmp/d.vmdk"), "1G", adapter_type="buslogic")
+        argv = run.call_args.args[0]
+        opts = argv[argv.index("-o") + 1]
+        assert "adapter_type=buslogic" in opts
+
+
+class TestVdiBuilder:
+    def test_build_invokes_qemu_img(self, mocker):
+        run = mocker.patch("subprocess.run", return_value=_fake_completed())
+        VdiBuilder().build(Path("/tmp/d.vdi"), "2G")
+        argv = run.call_args.args[0]
+        assert argv[argv.index("-f") + 1] == "vdi"
+        assert argv[-1] == "2G"
+
+
+class TestVhdxBuilder:
+    def test_build_invokes_qemu_img(self, mocker):
+        run = mocker.patch("subprocess.run", return_value=_fake_completed())
+        VhdxBuilder().build(Path("/tmp/d.vhdx"), "4G")
+        argv = run.call_args.args[0]
+        assert argv[argv.index("-f") + 1] == "vhdx"
+
+
+class TestQedBuilder:
+    def test_build_invokes_qemu_img(self, mocker):
+        run = mocker.patch("subprocess.run", return_value=_fake_completed())
+        QedBuilder().build(Path("/tmp/d.qed"), "512M")
+        argv = run.call_args.args[0]
+        assert argv[argv.index("-f") + 1] == "qed"

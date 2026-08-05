@@ -138,15 +138,18 @@ def build(
                 path = build_qemu_image(dist, target_obj, output_dir)
                 _out_console.print(f"built: {name} \\[{platform}] -> {path}")
             elif dist.format == "oci":
-                oci_plan = build_oci(dist, target_obj, output_dir, dry_run=True)
-                _out_console.print(
-                    f"prepared OCI build for {name} \\[{platform}]; "
-                    f"Dockerfile: {oci_plan.dockerfile_path}"
-                )
-                _out_console.print(
-                    "run: " + " ".join(oci_plan.buildx_command),
-                    highlight=False,
-                )
+                oci_plan = build_oci(dist, target_obj, output_dir, dry_run=dry_run)
+                if dry_run:
+                    _out_console.print(
+                        f"prepared OCI build for {name} \\[{platform}]; "
+                        f"Dockerfile: {oci_plan.dockerfile_path}"
+                    )
+                    _out_console.print(
+                        "run: " + " ".join(oci_plan.buildx_command),
+                        highlight=False,
+                    )
+                else:
+                    _out_console.print(f"built: {name} \\[{platform}] -> {oci_plan.output_path}")
             else:
                 _out_console.print(
                     f"Planned build (format {dist.format!r} not yet implemented): "
