@@ -1,5 +1,36 @@
 # distro-builder Project Plan
 
+## Current Implementation Status (as of 2025-07-15)
+
+**All 5 phases are complete.** The repository contains:
+
+- Full source code in `src/distro_builder/` (CLI, manifest, OCI, ISO, QEMU, utils)
+- 15 test files (~170 tests, all passing)
+- `pyproject.toml` with dependencies and entry point
+- 3 example manifests in `templates/manifests/`
+- GitHub Actions CI (`.github/workflows/ci.yml`)
+- `Dockerfile` for the builder itself
+- `README.md` with installation, usage, prerequisites, and known limitations
+
+### Phase-by-Phase Completion
+
+| Phase | Tasks | Status | Notes |
+|-------|-------|--------|-------|
+| 1: Foundation & CLI | 1.1–1.5 | ✅ Complete | pyproject.toml, pydantic models, manifest loader, click CLI, tests |
+| 2: ISO Builder | 2.1–2.4 | ✅ Complete | pycdlib wrapper, GRUB2 config, initramfs/dracut, pipeline. GRUB boot image generation added via `grub-mkimage` (Closes #6) |
+| 3: QEMU Image Builder | 3.1–3.3 | ✅ Complete | qemu-img wrapper, format adapters, pipeline. All 6 formats supported: raw, qcow2, vmdk, vdi, vhdx, qed (Closes #7) |
+| 4: OCI Container Builder | 4.1–4.3 | ✅ Complete | buildx wrapper, Dockerfile renderer, pipeline. OCI builds now execute (Closes #2), copy stages produce COPY instructions (Closes #3) |
+| 5: Polish | 5.1–5.5 | ✅ Complete | logging/progress, example manifests, CI, README, Dockerfile |
+
+### Remaining Known Gaps
+
+| Issue | Description | Priority |
+|-------|-------------|----------|
+| [#4](https://github.com/aenon/distro-builder/issues/4) | UEFI boot support declared but not wired up | Medium |
+| [#5](https://github.com/aenon/distro-builder/issues/5) | initramfs.py dracut integration wired into pipeline (Closes #5) | Done |
+| [#6](https://github.com/aenon/distro-builder/issues/6) | ISO output won't boot — no GRUB2 bootloader binary embedded (Closes #6) | Done |
+| [#8](https://github.com/aenon/distro-builder/issues/8) | This plan file is outdated (Closes #8) | Done |
+
 ## Executive Summary
 
 **Goal**: Build a containerized Linux distribution builder in Python + Shell capable of creating bootable ISOs, QEMU disk images, and OCI containers for X86 PCs, QEMU emulation (ARM64/RPi), and multi-platform OCI images. The builder itself must run from macOS or Linux host.

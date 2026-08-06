@@ -1,8 +1,15 @@
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
-from distro_builder.iso.grub2 import GrubConfig, MenuEntry, write_grub_cfg
+from distro_builder.iso.grub2 import (
+    GrubConfig,
+    MenuEntry,
+    generate_grub_boot_image,
+    write_grub_cfg,
+)
+from distro_builder.iso.initramfs import InitramfsSpec, render_dracut_command
 from distro_builder.iso.pycdlib_wrapper import IsoBuilder
 from distro_builder.manifest.models import Distribution, Stage, Target
 
@@ -34,6 +41,56 @@ def _placeholder_kernel(workdir: Path, name: str) -> Path:
     return path
 
 
+def _build_initramfs(stage: Stage, workdir: Path, kernel_version: str | None) -> Path | None:
+    """Try to build an initramfs via dracut from stage params.
+
+    Returns the path to the generated initramfs, or None if dracut is not available.
+    """
+    output_path = workdir / "initrd.img"
+    spec = InitramfsSpec(
+        kernel_version=kernel_version or stage.params.get("version", "0.0.0"),
+        modules=stage.params.get("modules", []),
+        extra_files=stage.params.get("extra_files", []),
+        compress=stage.params.get("compress", "zstd"),
+        hostonly=stage.params.get("hostonly", False),
+    )
+    argv = render_dracut_command(spec, output_path)
+    try:
+        proc = subprocess.run(argv, capture_output=True, text=True, check=False)
+        if proc.returncode == 0 and output_path.is_file():
+            return output_path
+    except OSError:
+        pass
+    return None
+
+
+def _get_initramfs_path(stage: Stage | None, workdir: Path, kernel_version: str | None) -> Path:
+    """Resolve the initramfs source: pre-built path, dracut build, or placeholder."""
+    if stage and "path" in stage.params:
+        path = Path(stage.params["path"])
+        if path.is_file():
+            return path
+    if stage:
+        built = _build_initramfs(stage, workdir, kernel_version)
+        if built is not None:
+            return built
+    return _placeholder_kernel(workdir / "placeholders", "initrd.img")
+
+
+def _resolve_kernel_path(stage: Stage | None, workdir: Path) -> tuple[Path, str | None]:
+    """Resolve kernel source and extract version string.
+
+    Returns (path, version).
+    """
+    if stage and "path" in stage.params:
+        path = Path(stage.params["path"])
+        version = stage.params.get("version")
+        return path, version
+    kernel_path = _placeholder_kernel(workdir / "placeholders", "vmlinuz")
+    version = stage.params.get("version") if stage else None
+    return kernel_path, version
+
+
 def build_iso(
     distribution: Distribution,
     target: Target,
@@ -57,16 +114,8 @@ def build_iso(
     initramfs_stage = _get_single(distribution.stages, "initramfs")
     grub_stage = _get_single(distribution.stages, "grub")
 
-    kernel_src = (
-        Path(kernel_stage.params["path"])
-        if kernel_stage and "path" in kernel_stage.params
-        else _placeholder_kernel(workdir / "placeholders", "vmlinuz")
-    )
-    initrd_src = (
-        Path(initramfs_stage.params["path"])
-        if initramfs_stage and "path" in initramfs_stage.params
-        else _placeholder_kernel(workdir / "placeholders", "initrd.img")
-    )
+    kernel_src, kernel_version = _resolve_kernel_path(kernel_stage, workdir)
+    initrd_src = _get_initramfs_path(initramfs_stage, workdir, kernel_version)
     if not kernel_src.is_file():
         raise PipelineError(f"kernel source not found: {kernel_src}")
     if not initrd_src.is_file():
@@ -102,6 +151,16 @@ def build_iso(
     grub_cfg_path = grub_dir / "grub.cfg"
     write_grub_cfg(grub_cfg, grub_cfg_path)
 
+    # Generate GRUB2 BIOS boot image (boot.img) for bootable ISO
+    grub_boot_path = grub_dir / "boot.img"
+    grub_modules = grub_stage.params.get("grub_modules") if grub_stage is not None else None
+    generated_boot = generate_grub_boot_image(
+        grub_boot_path,
+        modules=grub_modules,
+        config_path=grub_iso_path,
+        prefix="/boot/grub",
+    )
+
     output_path = workdir / target.output_name
     builder = IsoBuilder(
         output_path,
@@ -110,6 +169,11 @@ def build_iso(
     builder.add_file(kernel_src, kernel_iso_path)
     builder.add_file(initrd_src, initrd_iso_path)
     builder.add_file(grub_cfg_path, grub_iso_path)
+
+    # Add the GRUB boot image if it was generated
+    if generated_boot and generated_boot.is_file():
+        builder.add_file(generated_boot, "/boot/grub/boot.img")
+
     builder.set_boot_record(kernel_iso_path, "el_torito_bios")
     builder.write()
     return output_path

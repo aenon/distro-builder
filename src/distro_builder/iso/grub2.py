@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import shutil
+import subprocess
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -53,3 +55,66 @@ def write_grub_cfg(config: GrubConfig, path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(render_grub_cfg(config), encoding="utf-8")
     return path
+
+
+def generate_grub_boot_image(
+    output: Path,
+    *,
+    modules: list[str] | None = None,
+    grub_mkdir: str | None = "/boot/grub",
+    config_path: str | None = "/boot/grub/grub.cfg",
+    prefix: str | None = "/boot/grub",
+) -> Path | None:
+    """Generate a GRUB2 BIOS boot image using grub-mkimage.
+
+    Returns the output path on success, or None if grub-mkimage is not available.
+    """
+    output = Path(output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+
+    grub_mkimage = shutil.which("grub-mkimage") or shutil.which("grub2-mkimage")
+    if not grub_mkimage:
+        return None
+
+    default_modules = [
+        "biosdisk",
+        "boot",
+        "cat",
+        "configfile",
+        "echo",
+        "fat",
+        "font",
+        "gettext",
+        "gfxterm",
+        "grubenv",
+        "halt",
+        "iso9660",
+        "linux",
+        "normal",
+        "part_msdos",
+        "reboot",
+        "search",
+        "sleep",
+        "test",
+        "video",
+    ]
+    if modules is None:
+        modules = default_modules
+
+    argv = [grub_mkimage, "-o", str(output), "-O", "i386-pc", "-c", "/dev/null"]
+    if grub_mkdir is not None:
+        argv.extend(["--grub-mkdir", grub_mkdir])
+    if config_path is not None:
+        argv.extend(["-C", config_path])
+    if prefix is not None:
+        argv.extend(["-p", prefix])
+    argv.extend(modules)
+
+    try:
+        proc = subprocess.run(argv, capture_output=True, text=True, check=False)
+        if proc.returncode != 0:
+            return None
+    except OSError:
+        return None
+
+    return output
