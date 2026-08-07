@@ -114,8 +114,8 @@ def build_iso(
     initramfs_stage = _get_single(distribution.stages, "initramfs")
     grub_stage = _get_single(distribution.stages, "grub")
 
-    kernel_src, kernel_version = _resolve_kernel_path(kernel_stage, workdir)
-    initrd_src = _get_initramfs_path(initramfs_stage, workdir, kernel_version)
+    kernel_src, kernel_version = _resolve_kernel_path(kernel_stage, staging)
+    initrd_src = _get_initramfs_path(initramfs_stage, staging, kernel_version)
     if not kernel_src.is_file():
         raise PipelineError(f"kernel source not found: {kernel_src}")
     if not initrd_src.is_file():
