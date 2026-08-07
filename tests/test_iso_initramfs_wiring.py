@@ -64,7 +64,7 @@ class TestGrubBootImage:
         result = generate_grub_boot_image(tmp_path / "boot.img")
         assert result is None
 
-    def test_calls_grub_mkimage_with_default_modules(self, mocker, tmp_path: Path):
+    def test_returns_path_on_success(self, mocker, tmp_path: Path):
         fake_path = tmp_path / "grub-mkimage"
         fake_path.write_text("#!/bin/sh\nexit 0")
         fake_path.chmod(0o755)
@@ -73,6 +73,7 @@ class TestGrubBootImage:
 
         result = generate_grub_boot_image(tmp_path / "boot.img")
         assert result is not None
+        assert result == tmp_path / "boot.img"
 
     def test_custom_modules_passed(self, mocker, tmp_path: Path):
         fake_path = tmp_path / "grub-mkimage"
@@ -83,3 +84,4 @@ class TestGrubBootImage:
 
         result = generate_grub_boot_image(tmp_path / "boot.img", modules=["biosdisk", "linux"])
         assert result is not None
+        assert result == tmp_path / "boot.img"

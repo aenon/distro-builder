@@ -173,7 +173,10 @@ def build_iso(
     # Add the GRUB boot image if it was generated
     if generated_boot and generated_boot.is_file():
         builder.add_file(generated_boot, "/boot/grub/boot.img")
-
-    builder.set_boot_record(kernel_iso_path, "el_torito_bios")
+        # Point El Torito boot record at the bootloader binary, not the kernel
+        builder.set_boot_record("/boot/grub/boot.img", "el_torito_bios")
+    else:
+        # Fallback to kernel boot (non-GRUB, not truly bootable)
+        builder.set_boot_record(kernel_iso_path, "el_torito_bios")
     builder.write()
     return output_path
