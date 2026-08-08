@@ -1,0 +1,17 @@
+version: "1"
+distributions:
+  - name: demo-iso
+    family: debian
+    description: "demo ISO build"
+    format: iso
+    base_image: "debian:bookworm"
+    targets:
+      - platform: x86_64
+        output_name: demo-x86_64.iso
+    stages:
+      - name: boot-menu
+        type: grub
+        params:
+          title: "Demo Boot"
+          kernel_cmdline: "root=/dev/sr0 ro"
+          timeout: 3

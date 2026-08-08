@@ -1,0 +1,9 @@
+version: "1"
+distributions:
+  - name: broken
+    family: alpine
+    format: cpio
+    base_image: "alpine:3.19"
+    targets:
+      - platform: sparc
+        output_name: broken.iso

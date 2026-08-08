@@ -1,0 +1,30 @@
+version: "1"
+distributions:
+  - name: debian-minimal
+    family: debian
+    description: "Minimal Debian bookworm bootable ISO"
+    format: iso
+    base_image: "debian:bookworm"
+    targets:
+      - platform: x86_64
+        output_name: debian-minimal-x86_64.iso
+    stages:
+      - name: kernel
+        type: kernel
+        params:
+          version: "6.1.0-28-amd64"
+      - name: initramfs
+        type: initramfs
+        params:
+          compress: zstd
+          modules:
+            - virtio_blk
+            - virtio_net
+            - ext4
+            - squashfs
+      - name: grub
+        type: grub
+        params:
+          title: "Debian Minimal"
+          kernel_cmdline: "root=/dev/sr0 ro quiet console=ttyS0"
+          timeout: 5
