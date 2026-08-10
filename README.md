@@ -125,6 +125,51 @@ ruff check src/ tests/
 ruff format --check src/ tests/
 ```
 
+### Development Environment
+
+**macOS** (current primary dev platform):
+```bash
+# Python deps (use uv or pip)
+uv venv .venv && source .venv/bin/activate
+uv pip install -e .
+
+# Docker + buildx (required for OCI builds)
+# Install Docker Desktop - includes buildx and QEMU/binfmt
+
+# QEMU disk image tools (optional, for qcow2/raw)
+brew install qemu
+
+# ISO building: NOT available natively
+# GRUB2 BIOS/UEFI modules and dracut are Linux-only tools.
+# Use Docker Desktop VM, multipass, or remote Linux host.
+```
+
+**Linux** (required for full ISO and UEFI work):
+```bash
+# Debian/Ubuntu
+sudo apt-get update
+sudo apt-get install -y qemu-utils grub-pc-bin grub-efi-amd64-bin dracut-core
+
+# Verify GRUB2 can build both BIOS and UEFI images
+grub-mkimage -O i386-pc --help
+grub-mkimage -O x86_64-efi --help
+
+# Install Python deps
+pip install -e .
+```
+
+### Restarting UEFI work (Issue #4)
+
+UEFI boot support is [parked in issue #4](https://github.com/aenon/distro-builder/issues/4). To resume:
+
+1. Work on a **Linux machine** with `grub-efi-amd64-bin` installed.
+2. BIOS boot image generation already works (`generate_grub_boot_image()` in `grub2.py`).
+3. Mirror that pattern for UEFI: `generate_grub_efi_image()` with `-O x86_64-efi`.
+4. Wire `boot_type` param (`bios` | `uefi` | `hybrid`) into the `grub` stage and `iso/pipeline.py`.
+5. For hybrid ISOs: call `set_boot_record` twice (BIOS `boot.img` + UEFI `BOOTX64.EFI`).
+
+See the [checklist on issue #4](https://github.com/aenon/distro-builder/issues/4) for full details.
+
 ## Known Limitations
 
 - **Bootable x86 ISOs on macOS Apple Silicon**: Cannot be produced directly on macOS because standard Linux bootloader artifacts (GRUB2 BIOS/UEFI modules) are not distributed for macOS hosts. Use a Linux VM (Docker Desktop's built-in VM, `multipass`, or any Linux container) to run the builder.
